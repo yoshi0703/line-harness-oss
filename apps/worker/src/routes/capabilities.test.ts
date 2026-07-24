@@ -53,6 +53,7 @@ describe('GET /api/capabilities', () => {
     expect(body.data.features).toContain('dispatch_readback_v1');
     expect(body.data.features).toContain('push_retry_key_v1');
     expect(body.data.features).toContain('account_scope_fingerprint_v1');
+    expect(body.data.features).toContain('normalized_inbound_readback_v1');
     expect(body.data.min_app_version).toBeDefined();
     expect(body.data.product).toBe('line-harness');
     expect(body.data.platform).toBe('line');
@@ -65,6 +66,8 @@ describe('GET /api/capabilities', () => {
     expect(body.data.endpoints.runtimeMessageSend).toBe('/api/runtime/messages:send');
     expect(body.data.endpoints.runtimeAccountScope)
       .toBe('/api/runtime/conversations/:conversationRef/account-scope');
+    expect(body.data.endpoints.runtimeInboundEvent)
+      .toBe('/api/runtime/events/:eventRef');
     expect(body.data.endpoints.runtimeDispatchReadback)
       .toBe('/api/runtime/dispatches/:clientRequestId');
     expect(body.data.external_writes.message_send).toBe('provider_receipt_v1');

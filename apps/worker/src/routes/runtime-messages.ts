@@ -37,6 +37,15 @@ type RecipientRow = {
   channel_access_token: string | null;
 };
 
+type InboundEventRow = {
+  event_ref: string;
+  conversation_ref: string;
+  content: string;
+  received_at: string;
+  line_account_id: string | null;
+  account_channel_id: string | null;
+};
+
 type RuntimeSendRequest = {
   schemaVersion: 1;
   clientRequestId: string;
@@ -163,6 +172,22 @@ async function resolveRecipient(db: D1Database, conversationRef: string) {
   ).bind(conversationRef).first<RecipientRow>();
 }
 
+async function readInboundEvent(db: D1Database, eventRef: string) {
+  return db.prepare(
+    `SELECT message.id AS event_ref, chat.id AS conversation_ref,
+            message.content, message.created_at AS received_at,
+            friend.line_account_id, account.channel_id AS account_channel_id
+       FROM messages_log message
+       JOIN friends friend ON friend.id = message.friend_id
+       JOIN chats chat ON chat.friend_id = friend.id
+       LEFT JOIN line_accounts account ON account.id = friend.line_account_id
+      WHERE message.id = ?
+        AND message.direction = 'incoming'
+        AND message.message_type = 'text'
+      LIMIT 1`,
+  ).bind(eventRef).first<InboundEventRow>();
+}
+
 async function buildReceiptHash(
   input: RuntimeSendRequest,
   receipt: LineProviderReceipt,
@@ -203,6 +228,37 @@ runtimeMessages.get('/api/runtime/conversations/:conversationRef/account-scope',
       conversationRef,
       accountScopeFingerprint: await sha256(
         recipient.account_channel_id ?? c.env.LINE_CHANNEL_ID,
+      ),
+      release: {
+        version: BUNDLE_VERSION,
+        workerHash: WORKER_HASH,
+      },
+    },
+  });
+});
+
+runtimeMessages.get('/api/runtime/events/:eventRef', async (c) => {
+  if (c.get('staff')?.role !== 'owner') {
+    return c.json({ success: false, error: 'Owner access required' }, 403);
+  }
+  const eventRef = c.req.param('eventRef');
+  if (!OPAQUE_REF_PATTERN.test(eventRef)) {
+    return c.json({ success: false, error: 'Invalid event reference' }, 400);
+  }
+  const event = await readInboundEvent(c.env.DB, eventRef);
+  if (!event) {
+    return c.json({ success: false, error: 'Inbound event not found' }, 404);
+  }
+  return c.json({
+    success: true,
+    data: {
+      schemaVersion: 1,
+      eventRef: event.event_ref,
+      conversationRef: event.conversation_ref,
+      message: { type: 'text', text: event.content },
+      receivedAt: event.received_at,
+      accountScopeFingerprint: await sha256(
+        event.account_channel_id ?? c.env.LINE_CHANNEL_ID,
       ),
       release: {
         version: BUNDLE_VERSION,

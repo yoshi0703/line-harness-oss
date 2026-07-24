@@ -19,6 +19,8 @@ vi.mock('@line-crm/db', () => ({
   advanceFriendScenario: vi.fn(),
   completeFriendScenario: vi.fn(),
   upsertChatOnMessage: vi.fn(),
+  getChatByFriendId: vi.fn(),
+  createChat: vi.fn(),
   getLineAccounts: vi.fn().mockResolvedValue([]),
   jstNow: vi.fn(),
   computeNextDeliveryAt: vi.fn(),
@@ -278,7 +280,15 @@ describe('POST /webhook — first-contact existing friends', () => {
     expect(fireEvent).toHaveBeenCalledWith(
       db,
       'message_received',
-      expect.objectContaining({ friendId: 'friend-1' }),
+      expect.objectContaining({
+        friendId: 'friend-1',
+        eventData: expect.objectContaining({
+          text: 'こんにちは',
+          matched: false,
+          conversationRef: 'chat-1',
+          providerEventId: 'event-1',
+        }),
+      }),
       'env-default-token',
       null,
     );

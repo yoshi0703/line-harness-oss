@@ -12,6 +12,8 @@ import {
   advanceFriendScenario,
   completeFriendScenario,
   upsertChatOnMessage,
+  getChatByFriendId,
+  createChat,
   getLineAccounts,
   jstNow,
   computeNextDeliveryAt,
@@ -668,15 +670,21 @@ async function handleEvent(
     }
 
     // auto_replies にマッチしなかった = 自発メッセージ → unread にする
-    if (!matched) {
-      await upsertChatOnMessage(db, friend.id);
-    }
+    const chat = matched
+      ? (await getChatByFriendId(db, friend.id)) ?? (await createChat(db, { friendId: friend.id }))
+      : await upsertChatOnMessage(db, friend.id);
 
     // イベントバス発火: message_received
     // Pass replyToken only when auto_reply didn't actually consume it
     await fireEvent(db, 'message_received', {
       friendId: friend.id,
-      eventData: { text: incomingText, matched },
+      eventData: {
+        text: incomingText,
+        matched,
+        eventRef: logId,
+        conversationRef: chat.id,
+        providerEventId: event.webhookEventId,
+      },
       replyToken: replyTokenConsumed ? undefined : event.replyToken,
     }, lineAccessToken, lineAccountId);
 

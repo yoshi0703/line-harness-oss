@@ -40,6 +40,11 @@ class FakeStatement {
   }
 
   async first<T>(): Promise<T | null> {
+    if (this.sql.includes('message.id AS event_ref')) {
+      return this.values[0] === this.db.inboundEvent.event_ref
+        ? this.db.inboundEvent as T
+        : null;
+    }
     if (this.sql.includes('FROM provider_message_dispatches')) {
       return (this.db.dispatches.get(String(this.values[0])) ?? null) as T | null;
     }
@@ -129,6 +134,14 @@ class FakeDb {
     account_channel_id: null,
     channel_access_token: null,
   };
+  readonly inboundEvent = {
+    event_ref: 'event-ref-1',
+    conversation_ref: 'chat-1',
+    content: '営業時間を教えてください',
+    received_at: '2026-07-24T12:00:00.000+09:00',
+    line_account_id: null,
+    account_channel_id: null,
+  };
   messageLogCount = 0;
 
   prepare(sql: string) {
@@ -202,6 +215,24 @@ beforeEach(() => {
 });
 
 describe('runtime message dispatch receipt contract', () => {
+  test('reads a normalized inbound event without provider identity', async () => {
+    const db = new FakeDb();
+    const { app, env } = setup(db);
+
+    const response = await app.request('/api/runtime/events/event-ref-1', undefined, env);
+
+    expect(response.status).toBe(200);
+    const body = await response.json() as { data: Record<string, unknown> };
+    expect(body.data).toMatchObject({
+      eventRef: 'event-ref-1',
+      conversationRef: 'chat-1',
+      message: { type: 'text', text: '営業時間を教えてください' },
+    });
+    expect(body.data).not.toHaveProperty('lineUserId');
+    expect(body.data).not.toHaveProperty('friendId');
+    expect(body.data.accountScopeFingerprint).toBe(await expectedFingerprint());
+  });
+
   test('returns the opaque conversation account scope without provider identity', async () => {
     const db = new FakeDb();
     const { app, env } = setup(db);
