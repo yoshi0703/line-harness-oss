@@ -8,8 +8,19 @@ import {
   updateAccountMigration,
 } from '@line-crm/db';
 import type { Env } from '../index.js';
+import { BUNDLE_VERSION, WORKER_HASH } from '../_version.js';
+import { API_VERSION } from './capabilities.js';
 
 const health = new Hono<Env>();
+
+// Public liveness and immutable build identity only. Tenant, binding, D1 and
+// credential details are intentionally excluded.
+health.get('/api/health', (c) => c.json({
+  status: 'ok',
+  releaseVersion: BUNDLE_VERSION,
+  workerHash: WORKER_HASH,
+  apiVersion: API_VERSION,
+}));
 
 // ========== アカウントヘルス ==========
 
