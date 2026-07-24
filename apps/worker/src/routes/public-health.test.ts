@@ -10,17 +10,21 @@ describe('GET /api/health', () => {
 
     expect(response.status).toBe(200);
     const body = await response.json() as {
-      status: string;
-      releaseVersion: string;
-      workerHash: string;
-      apiVersion: number;
-      [key: string]: unknown;
+      success: boolean;
+      data: {
+        status: string;
+        releaseVersion: string;
+        workerHash: string;
+        apiVersion: number;
+        [key: string]: unknown;
+      };
     };
-    expect(body.status).toBe('ok');
-    expect(body.releaseVersion).toBe('0.0.0-dev');
-    expect(body.workerHash).toMatch(/^sha256:[0-9a-f]{64}$/);
-    expect(body.apiVersion).toBe(2);
-    expect(body).not.toHaveProperty('accountId');
-    expect(body).not.toHaveProperty('databaseId');
+    expect(body.success).toBe(true);
+    expect(body.data.status).toBe('ok');
+    expect(body.data.releaseVersion).toBe('0.0.0-dev');
+    expect(body.data.workerHash).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(body.data.apiVersion).toBe(2);
+    expect(body.data).not.toHaveProperty('accountId');
+    expect(body.data).not.toHaveProperty('databaseId');
   });
 });

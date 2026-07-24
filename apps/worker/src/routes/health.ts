@@ -15,12 +15,18 @@ const health = new Hono<Env>();
 
 // Public liveness and immutable build identity only. Tenant, binding, D1 and
 // credential details are intentionally excluded.
-health.get('/api/health', (c) => c.json({
-  status: 'ok',
-  releaseVersion: BUNDLE_VERSION,
-  workerHash: WORKER_HASH,
-  apiVersion: API_VERSION,
-}));
+const LIVENESS_BODY = {
+  success: true,
+  data: {
+    status: 'ok',
+    releaseVersion: BUNDLE_VERSION,
+    workerHash: WORKER_HASH,
+    apiVersion: API_VERSION,
+  },
+} as const;
+
+health.get('/health', (c) => c.json(LIVENESS_BODY));
+health.get('/api/health', (c) => c.json(LIVENESS_BODY));
 
 // ========== アカウントヘルス ==========
 
